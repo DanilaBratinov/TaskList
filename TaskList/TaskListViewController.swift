@@ -12,11 +12,12 @@ final class TaskListViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
+        fetchData()
         setupNavigationBar()
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellID)
     }
     
-    
+    //MARK: - SetupNavigationBar
     private func setupNavigationBar() {
         title = "Task List"
         navigationController?.navigationBar.prefersLargeTitles = true
@@ -43,6 +44,7 @@ final class TaskListViewController: UITableViewController {
         showAlert(withTitle: "New Task", andMessage: "Please, add new task")
     }
     
+    //    MARK: - FetchData
     private func fetchData() {
         let fetchRequest = Task.fetchRequest()
         
@@ -54,7 +56,7 @@ final class TaskListViewController: UITableViewController {
     }
 }
 
-//MARK: - TableViewDataSource
+    //  MARK: - TableViewDataSource
 extension TaskListViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         taskList.count
@@ -69,6 +71,41 @@ extension TaskListViewController {
         cell.contentConfiguration = content
         return cell
     }
+    
+    //    MARK: - Delete Cell
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            delete(for: indexPath)
+        }
+    }
+    
+    //    MARK: - Editing Cell
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let alert = UIAlertController(title: "Update Task", message: "When do you want to do", preferredStyle: .alert)
+        let saveAction = UIAlertAction(title: "Save", style: .default) { [unowned self]_ in
+            guard let task = alert.textFields?.first?.text else { return }
+            
+            taskList[indexPath.row].title = task
+            if viewContext.hasChanges {
+                do {
+                    try viewContext.save()
+                    tableView.reloadData()
+                } catch let error {
+                    print(error)
+                }
+            }
+        }
+        
+        alert.addAction(saveAction)
+        alert.addTextField {[unowned self] textField in
+            textField.text = taskList[indexPath.row].title
+            
+        }
+        
+        present(alert, animated: true)
+    }
+    
+    //    MARK: - UIAletController
     
     private func showAlert(withTitle title: String, andMessage message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
@@ -87,6 +124,8 @@ extension TaskListViewController {
         present(alert, animated: true)
     }
     
+    //MARK: - Save and Delete
+    
     private func save(_ taskName: String) {
         let task = Task(context: viewContext)
         task.title = taskName
@@ -100,6 +139,22 @@ extension TaskListViewController {
                 try viewContext.save()
             } catch let error {
                 print(error)
+            }
+        }
+    }
+    
+    private func delete(for indexPath: IndexPath) {
+        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
+        taskList.remove(at: indexPath.row)
+        tableView.deleteRows(at: [indexPath], with: .automatic)
+        if let objects = try? viewContext.fetch(fetchRequest) {
+            viewContext.delete(objects[indexPath.row])
+            if viewContext.hasChanges {
+                do {
+                    try viewContext.save()
+                } catch let error {
+                    print(error)
+                }
             }
         }
     }
